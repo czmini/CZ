@@ -1,10 +1,5 @@
 <?php
-/*
-$html = _get('fau.html');
-$ins = Scraper::_var($html, 'instructText.innerText');
-var_dump($ins);
-die;
-*/
+
 return (new class {
     
     use Base, Mimic;
@@ -91,7 +86,7 @@ return (new class {
                 $po = null;
                 
                 $_0 = Net::X($this->host.$this->r, 'GET', null, Inf::$cookie, $this->headersCF, '', Inf::$uagent, d: true);
-                $_0 = $this->checkCF($this->headersCF, $this->host, $_0, 1);
+                $_0 = $this->checkCF($this->headersCF, $this->host, $_0);
                 
                 if (!empty($_0) && $_0 !== 99) {
                     $f = Scraper::payload($_0)[0] ?? null;
@@ -110,7 +105,6 @@ return (new class {
                 }
                 
                 if ($po) {
-                    $this->_ck();
                     #print_r($po); die;
                     $ve = Net::X($f['url'], 'POST', $po, Inf::$cookie, $this->headersCF, $this->host.$this->r, Inf::$uagent);
                     #_put('ve.html', $ve); #die; _rl('cek ve: ');
@@ -157,9 +151,9 @@ return (new class {
                         }
                         $ret99 = 0;
                         
-                        $fau = $this->checkCF($this->headersCF, $fa, $fau, 1);
+                        $fau = $this->checkCF($this->headersCF, $fa, $fau);
                         
-                        _put('fau.html', $fau);
+                        #_put('fau.html', $fau);
                         if ($ban = $this->isBan($fau)) {
                             if (!$this->SLDONE) {
                                 $curr = $_c;
@@ -169,7 +163,6 @@ return (new class {
                             continue;
                         }
                         
-                        #_put('fau.html', $fau); #die;
                         $po = null;
                         if (!empty($fau) && $fau !== 99) {
                             $f = Scraper::payload($fau, 'fauform')[0] ?? null;
@@ -233,6 +226,7 @@ return (new class {
                                 }
                             }
                             
+                            #die;
                             styler("waiting for next claim", fn() => _sle(rand(10, 13)));
                         }
                         
@@ -373,7 +367,7 @@ return (new class {
     }
     
     private function onfCap($html, $host, $reff) {
-        $setCAP = microtime(true);
+        
         $img = null;
         $x_cap = ['ins' => 'ASC', 'cnt' => 3];
         $warna = null;
@@ -384,6 +378,12 @@ return (new class {
             'GET', null, Inf::$cookie, $this->headersCF, 
             $reff, Inf::$uagent, d: true
         );
+        
+        /*
+        _put('img.png', $req['body']); die;
+        unset($req['body']);
+        var_dump($req); die;
+        */
         
         if (!empty($req) && $req !== 99) {
             $x_pow = [
@@ -401,9 +401,9 @@ return (new class {
                     'cnt' => count(explode(',', $sequence))
                 ];
                 $wtype = 'necaptcha';
-            } elseif (str_contains($html, 'line to the correct destination ')) {
+            } elseif (str_contains($html, 'Follow the dashed wire to the other side')) {
                 $warna = [
-                    'ins' => $req['headers']['x-captcha-color-name'][0] ?? 'RED',
+                    'ins' => $req['headers']['x-captcha-color-name'][0] ?? '',
                     'cnt' => (int)($req['headers']['x-captcha-target-count'][0] ?? 1)
                 ];
                 $wtype = 'necaptcha';
@@ -415,11 +415,12 @@ return (new class {
             ];
             
             $img = $req['body'] ?? null;
+            $setCAP = microtime(true);
         }
         
         if (!empty($img)) {
             #var_dump($x_cap); #die;
-            #_put('img.png', $img); die;
+            #_put('img.png', $img); #die;
             
             $captype = $wtype ?? 'onlyfans';
             $cappart = $warna ? $x_cap : [];
@@ -470,6 +471,48 @@ return (new class {
     
     public function onfFPS($ua, array $mouse, int $waktu) {
         
+        static $st = null;
+        
+        if (empty($st)) {
+            $sth = md5("{$this->mail}|{$ua}");
+            $st = 'st_'.substr($sth, 0, 8).substr($sth, 8, 8); 
+        }
+    
+        $hwDetails = [
+            'st' => $st,
+            'gl' => $this->webglFingerprint['renderer'] ?? 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3060, OpenGL 4.5)',
+            'tz' => TIMEZONE(),
+            'sw' => $this->screenFingerprint['availWidth'] ?? 1920,
+            'sh' => $this->screenFingerprint['availHeight'] ?? 1040,
+            'wd' => false,
+            'chr' => true,
+            'ua' => $ua
+        ];
+    
+        return base64_encode(json_encode([
+            'solve_time_ms' => $waktu,
+            'hardware_hash' => $this->djb2(json_encode($hwDetails, JSON_UNESCAPED_SLASHES)),
+            'webdriver' => $hwDetails['wd'] ? 1 : 0,
+            'mouse_data' => array_values($mouse),
+            'raw' => array_merge(
+                [
+                    'iw' => $this->screenFingerprint['innerWidth'] ?? 1920,
+                    'ih' => $this->screenFingerprint['innerHeight'] ?? 1080
+                ],
+                $hwDetails
+            )
+        ], JSON_UNESCAPED_SLASHES));
+    }
+    
+    private function djb2($str) {
+        $hash = 5381;
+        for ($i = (strlen($str) - 1); $i >= 0; $i--) $hash = ((($hash * 33) & 0xFFFFFFFF) ^ ord($str[$i])) & 0xFFFFFFFF;
+        $sign = sprintf('%u', $hash & 0xFFFFFFFF);
+        return base_convert($sign, 10, 16);
+    }
+    
+    public function onfFPS0($ua, array $mouse, int $waktu) {
+        
         return base64_encode(json_encode([
             'solve_time_ms' => $waktu,
             'hardware_hash' => $this->browserFingerprint['canvas']['hash'] ?? $this->gen_fphash(),
@@ -485,15 +528,8 @@ return (new class {
                 'chr' => true,
                 'ua' => $ua
             ],
-            'fingerprint' => $this->browserFingerprint
+            #'fingerprint' => $this->browserFingerprint
         ], JSON_UNESCAPED_SLASHES));
-    }
-    
-    private function djb2($str) {
-        $hash = 5381;
-        for ($i = (strlen($str) - 1); $i >= 0; $i--) $hash = ((($hash * 33) & 0xFFFFFFFF) ^ ord($str[$i])) & 0xFFFFFFFF;
-        $sign = sprintf('%u', $hash & 0xFFFFFFFF);
-        return base_convert($sign, 10, 16);
     }
     
     private function parseShortL($ud, $sl) {
@@ -542,7 +578,7 @@ return (new class {
             }
         }
         
-        return $this->checkCF($this->headersCF, $url, $cekk, 1, $payload);
+        return $this->checkCF($this->headersCF, $url, $cekk, 0, $payload);
         
     }
     

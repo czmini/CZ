@@ -29,7 +29,6 @@ trait Mimic {
         $isFirefox = stripos($ua, 'Firefox') !== false;
         $isSafari = stripos($ua, 'Safari') !== false && !$isChrome;
         
-        // ✅ Pakai LANGUAGE() helper
         $lang = LANGUAGE();
         $langs = [$lang];
         $extra = ['en-US', 'en-GB'];
@@ -46,8 +45,8 @@ trait Mimic {
             'appName' => $isFirefox ? 'Netscape' : 'Netscape',
             'appVersion' => $this->rand_appver($ua),
             'appCodeName' => 'Mozilla',
-            'language' => $lang,  // ← Dari helper
-            'languages' => $langs, // ← Dari helper
+            'language' => $lang,
+            'languages' => $langs,
             'cookieEnabled' => true,
             'doNotTrack' => $this->get_DNT(),
             'hardwareConcurrency' => $this->get_concur(),
@@ -67,7 +66,6 @@ trait Mimic {
     
     protected function _screen($ua) {
         $isMobile = $this->_mobile($ua);
-        
         $res = $isMobile ? $this->res_mobiles() : $this->res_desktop();
         
         $this->screenFingerprint = [
@@ -75,6 +73,8 @@ trait Mimic {
             'height' => $res['height'],
             'availWidth' => $res['availWidth'],
             'availHeight' => $res['availHeight'],
+            'innerWidth' => $res['availWidth'] - 17,
+            'innerHeight' => $res['availHeight'] - 80,
             'colorDepth' => 24,
             'pixelDepth' => 24,
             'orientation' => [
@@ -498,19 +498,20 @@ trait Mimic {
     }
     
     protected function gen_Browser($ua): array {
-        if (stripos($ua, 'Chrome') !== false) {
+        if (preg_match('/Chrome\/(\d+)/', $ua, $m)) {
+            $v = $m[1];
             return [
-                ['brand' => 'Chromium', 'version' => '120'],
-                ['brand' => 'Google Chrome', 'version' => '120'],
+                ['brand' => 'Chromium', 'version' => $v],
+                ['brand' => 'Google Chrome', 'version' => $v],
                 ['brand' => 'Not=A?Brand', 'version' => '99']
             ];
-        } elseif (stripos($ua, 'Firefox') !== false) {
+        } elseif (preg_match('/Firefox\/(\d+)/', $ua, $m)) {
             return [
-                ['brand' => 'Mozilla Firefox', 'version' => '120']
+                ['brand' => 'Mozilla Firefox', 'version' => $m[1]]
             ];
-        } elseif (stripos($ua, 'Safari') !== false) {
+        } elseif (preg_match('/Version\/(\d+\.\d+)/', $ua, $m)) {
             return [
-                ['brand' => 'Apple Safari', 'version' => '17.2']
+                ['brand' => 'Apple Safari', 'version' => $m[1]]
             ];
         }
         return [];

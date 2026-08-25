@@ -258,8 +258,10 @@ class Net {
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_FOLLOWLOCATION => $opt['follow'],
-            CURLOPT_CONNECTTIMEOUT => 30,
+            
+            CURLOPT_CONNECTTIMEOUT => 10,
             CURLOPT_TIMEOUT => $opt['timeout'] ?? 30,
+            
             CURLOPT_HTTPHEADER => $opt['head'], 
             #CURLOPT_REFERER => $opt['ref'],
             CURLOPT_SSL_VERIFYPEER => !$insecure,
@@ -334,14 +336,15 @@ class Net {
                 $errno = curl_errno($ch);
                 $err = curl_error($ch);
                 
-/*
-var_dump($info);
-var_dump($body);
-var_dump($errno);
-var_dump($err);
-*/
+
+#var_dump($info);
+#var_dump($body);
+#var_dump($errno);
+#var_dump($err);
+
                 
                 if ($body !== false) {
+                    #var_dump($info);
                     if (($info['http_code'] ?? 0) === 407) {
                         Logger::X('err', "Proxy Auth Failed (407)");
                         return 99; 
@@ -380,7 +383,7 @@ var_dump($err);
                     curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
                 }
                 
-                $retryCodes = [7, 52, 28, 35, 92, 56];
+                $retryCodes = [7, 52, 28, 92, 56];
                 if (!in_array($errno, $retryCodes, true) || $attempt === 9) throw new Exception("Net($errno): $err");
                 
                 _sle(1);

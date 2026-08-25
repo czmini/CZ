@@ -287,6 +287,7 @@ class Bctt {
             }
         }
         
+        #_put('ccget.html', $cc_get); #die;
         #_put('ccpre.html', $cc_pre); #die;
         
         if (!empty($cc_pre) && $cc_pre !== 99) {
@@ -344,7 +345,7 @@ class Bctt {
                 'target_url' => $target_url,
                 'action' => $action
             ];
-            
+            var_dump($param); 
             if (in_array(null, $param, true)) throw new Exception('Missing required parameters');
         }
 
@@ -449,70 +450,6 @@ class Bctt {
         return false;
     }
     
-    private function _solve($data, $num = null) {
-        $pow_d = $data['difficulty'] ?? 4;
-        $pow_c = $data['challenge'] ?? null;
-        
-        $main = $this->_parseImages($data['pixel'], 200, 100);
-        $captcha['main'] = $main;
-        
-        foreach ($data['options'] as $i => $opt) {
-            $captcha['opsi'][$i] = $this->_parseImages($opt['pixels'], $opt['width'], $opt['height']);
-        }
-        
-        $solution = null;
-        
-        $solver = Config::getKeys($this->api, 'bitcotask', 'b64');
-        if (method_exists($solver, 'bct')) {
-            $solution = $solver->bct($captcha, $data);
-            
-            if (isset($solution['fail'])) {
-                if (!method_exists($this->api, 'bct')) return false;
-                $solution = $this->api->bct($captcha, $data);
-            }
-        }
-        
-        if (!is_array($solution) || isset($solution['fail'])) return false;
-        
-        return [
-            'pow' => array_merge(
-                SolveUtils::Pow($pow_c, $pow_d, ':'),
-                ['ch' => $pow_c, 'di' => $pow_d]
-            ),
-            'cap' => $solution['idx']
-        ];
-    }
-    
-    private function _parseImages($b64, $w, $h) {
-        $raw = base64_decode($b64);
-        if (strlen($raw) < $w * $h * 4) return false;
-        
-        $img = imagecreatetruecolor($w, $h);
-        imagealphablending($img, false);
-        imagesavealpha($img, true);
-        
-        $i = 0;
-        for ($y = 0; $y < $h; $y++) {
-            for ($x = 0; $x < $w; $x++) {
-                $r = ord($raw[$i++] ?? "\x00");
-                $g = ord($raw[$i++] ?? "\x00");
-                $b = ord($raw[$i++] ?? "\x00");
-                $a = ord($raw[$i++] ?? "\x00");
-                
-                $alpha = 127 - (int)($a / 255 * 127);
-                $color = imagecolorallocatealpha($img, $r, $g, $b, $alpha);
-                imagesetpixel($img, $x, $y, $color);
-            }
-        }
-        
-        ob_start();
-        imagepng($img);
-        $imageData = ob_get_clean();
-        @imagedestroy($img);
-        
-        return base64_encode($imageData);
-    }
-    
     private function _buildPayload($fjs = null, $param = null, $solution = null) {
         $fieldKeys = array_keys($fjs['cc_ran']);
         $elapsed = rand(3000, 6000);
@@ -585,6 +522,70 @@ class Bctt {
             'url' => $fjs['cc_verify'] ?? $fjs['cc_end'],
             'payload' => $payload,
         ];
+    }
+    
+    private function _solve($data, $num = null) {
+        $pow_d = $data['difficulty'] ?? 4;
+        $pow_c = $data['challenge'] ?? null;
+        
+        $main = $this->_parseImages($data['pixel'], 200, 100);
+        $captcha['main'] = $main;
+        
+        foreach ($data['options'] as $i => $opt) {
+            $captcha['opsi'][$i] = $this->_parseImages($opt['pixels'], $opt['width'], $opt['height']);
+        }
+        
+        $solution = null;
+        
+        $solver = Config::getKeys($this->api, 'bitcotask', 'b64');
+        if (method_exists($solver, 'bct')) {
+            $solution = $solver->bct($captcha, $data);
+            
+            if (isset($solution['fail'])) {
+                if (!method_exists($this->api, 'bct')) return false;
+                $solution = $this->api->bct($captcha, $data);
+            }
+        }
+        
+        if (!is_array($solution) || isset($solution['fail'])) return false;
+        
+        return [
+            'pow' => array_merge(
+                SolveUtils::Pow($pow_c, $pow_d, ':'),
+                ['ch' => $pow_c, 'di' => $pow_d]
+            ),
+            'cap' => $solution['idx']
+        ];
+    }
+    
+    private function _parseImages($b64, $w, $h) {
+        $raw = base64_decode($b64);
+        if (strlen($raw) < $w * $h * 4) return false;
+        
+        $img = imagecreatetruecolor($w, $h);
+        imagealphablending($img, false);
+        imagesavealpha($img, true);
+        
+        $i = 0;
+        for ($y = 0; $y < $h; $y++) {
+            for ($x = 0; $x < $w; $x++) {
+                $r = ord($raw[$i++] ?? "\x00");
+                $g = ord($raw[$i++] ?? "\x00");
+                $b = ord($raw[$i++] ?? "\x00");
+                $a = ord($raw[$i++] ?? "\x00");
+                
+                $alpha = 127 - (int)($a / 255 * 127);
+                $color = imagecolorallocatealpha($img, $r, $g, $b, $alpha);
+                imagesetpixel($img, $x, $y, $color);
+            }
+        }
+        
+        ob_start();
+        imagepng($img);
+        $imageData = ob_get_clean();
+        @imagedestroy($img);
+        
+        return base64_encode($imageData);
     }
     
     public function cleanup($flag = false) {

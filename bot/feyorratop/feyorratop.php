@@ -358,7 +358,7 @@ return (new class {
                         }
                         
                     }
-                    /*
+                    
                     if (!empty($ptcList['bctt'])) {
                         #print_r($ptcList['bctt']); die;
                         foreach ($ptcList['bctt'] as $ptc) {
@@ -375,7 +375,7 @@ return (new class {
                             
                         }
                     }
-                    */
+                    
                 }
                 
                 
@@ -494,7 +494,7 @@ return (new class {
                 
             }
             
-            /*
+            
             $off_B = Net::C("{$this->host}/offerwall/bitcotasks", 'GET', null, Inf::$cookie, [], "{$this->host}/dashboard", Inf::$uagent, ip: $this->ip);
             $bctt_u = Scraper::_jP($off_B, '/<iframe[^>]*src=["\']([^"\']*bitcotask[^"\']*)["\'][^>]*>/i')[1][0] ?? null;
             
@@ -505,7 +505,7 @@ return (new class {
                 if (($bcttwl === 'habis')) $this->BCDONE = true;
                 
             }
-            */
+            
             
             if ($this->SLDONE && $this->ADDONE && !$this->claim && $this->BCDONE) styler('cooldown', fn() => _sle(600));
             
