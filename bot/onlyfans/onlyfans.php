@@ -153,7 +153,7 @@ return (new class {
                         
                         $fau = $this->checkCF($this->headersCF, $fa, $fau);
                         
-                        #_put('fau.html', $fau);
+                        _put('fau.html', $fau);
                         if ($ban = $this->isBan($fau)) {
                             if (!$this->SLDONE) {
                                 $curr = $_c;
@@ -176,7 +176,7 @@ return (new class {
                                 $cap = Solve::exec($fau, $this->host, $this->api, $pa);
                                 
                                 if (isset($cap['nocaptcha']) && isset($pa['captcha_answer'])) $cap = $this->onfCap($fau, $this->host, $fa, $this->api);
-                                
+                                #var_dump($cap);
                                 if (isset($cap['trouble'])) {
                                     _sle(10);
                                     continue;
@@ -371,7 +371,7 @@ return (new class {
         $img = null;
         $x_cap = ['ins' => 'ASC', 'cnt' => 3];
         $warna = null;
-        $wtype = '';
+        $wtype = null;
         
         $req = Net::X(
             $host.'/faucet/captcha_image?_t=' . (time() * 1000), 
@@ -380,12 +380,14 @@ return (new class {
         );
         
         /*
-        _put('img.png', $req['body']); die;
+        _put('img.png', $req['body']); #die;
         unset($req['body']);
         var_dump($req); die;
         */
         
         if (!empty($req) && $req !== 99) {
+            
+            $img = $req['body'] ?? null;
             $x_pow = [
                 'salt' => $req['headers']['x-pow-salt'][0] ?? '',
                 'diff' => (int)($req['headers']['x-pow-difficulty'][0] ?? 2)
@@ -413,17 +415,14 @@ return (new class {
                 'ins' => $req['headers']['x-captcha-instruction'][0] ?? 'ASC',
                 'cnt' => (int)($req['headers']['x-captcha-target-count'][0] ?? 3)
             ];
-            
-            $img = $req['body'] ?? null;
             $setCAP = microtime(true);
         }
         
         if (!empty($img)) {
-            #var_dump($x_cap); #die;
             #_put('img.png', $img); #die;
             
             $captype = $wtype ?? 'onlyfans';
-            $cappart = $warna ? $x_cap : [];
+            $cappart = $warna ?? $x_cap;
             
             $solution = Solve::img($this->api, $reff, $captype, $img, $cappart);
             if (isset($solution['trouble'])) return ['trouble' => 'reload'];
