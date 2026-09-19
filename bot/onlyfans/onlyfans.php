@@ -165,9 +165,16 @@ return (new class {
                         
                         $po = null;
                         if (!empty($fau) && $fau !== 99) {
-                            $f = Scraper::payload($fau, 'fauform')[0] ?? null;
-                            #var_dump($f); die;
+                            $form = Scraper::payload($fau);
                             
+                            $f = null;
+                            if (!empty($form)) {
+                                foreach ($form as $_ff) {
+                                    if (!empty($_ff['payload']) && str_contains(($_ff['url'] ?? ''), 'verify')) $f = $_ff;
+                                }
+                            }
+                            
+                            #var_dump($f); #die;
                             if (!empty($f)) {
                                 
                                 $pa = $f['payload'];
@@ -176,11 +183,11 @@ return (new class {
                                 #$cap = $this->_cp($fau);
                                 $cap = Solve::exec($fau, $this->host, $this->api, $pa);
                                 
-                                if (empty($pa['captcha_answer'])) {
+                                if (isset($pa['captcha_answer']) && empty($pa['captcha_answer'])) {
+                                    
                                     $onf = $this->onfCap($fau, $this->host, $fa, $this->api);
                                     if ($cap['nocaptcha'] ?? '') $cap = $onf;
                                     #var_dump($cap);
-                                    
                                     
                                 }
                                 if (isset($cap['trouble'])) {
@@ -375,107 +382,73 @@ return (new class {
     private function onfCap($html, $host, $reff) {
         
         $img = null;
-        $x_cap = ['ins' => 'ASC', 'cnt' => 3];
-        $warna = null;
-        $wtype = null;
-        $req = null;
-        
-        
+        $part = [];
         # BERUBAH MULU ANJING
         $req = Net::X($host.'/faucet/captcha_image?_t=' . (time() * 1000), 'GET', null, Inf::$cookie, $this->headersCF, $reff, Inf::$uagent, d: true);
         
-        
-        #_put('img.png', $req['body']); die;
-        #unset($req['body']);
-        #var_dump($req['headers']); #die;
-        
+        /*
+        _put('img.png', $req['body']); #die;
+        unset($req['body']);
+        var_dump($req['headers']); die;
+        */
         
         if (!empty($req) && $req !== 99) {
-            
-            
-            $img = $req['body'] ?? null;
+            /*
             $x_pow = [
                 'salt' => $req['headers']['x-pow-salt'][0] ?? '',
                 'diff' => (int)($req['headers']['x-pow-difficulty'][0] ?? 2)
             ];
+            */
             
-            $x_cap = $warna ?? [
-                'ins' => $req['headers']['x-captcha-instruction'][0] ?? 'ASC',
-                'cnt' => (int)($req['headers']['x-captcha-target-count'][0] ?? 3)
+            $img = $req['body'] ?? null;
+            
+            if (stripos($html, 'assembled shapes in order') != false) $type = 'onlyfans';
+            
+            $param = [
+                'type' => ($type ?? null),
+                'cnt' => ($req['headers']["x-captcha-target-count"][0] ?? 3),
             ];
-            $setCAP = microtime(true);
             
-            $trap = ($req['headers']["x-captcha-trap-key"][0] ?? '') && ($req['headers']["x-captcha-trap-val"][0] ?? '') ?? null;
+            if (in_array(null, $param, true)) {
+                $this->logger('err', "unknown error", 'undetected some parameter or website was changed');
+                return ['trouble' => 1];
+            }
+            
+            
         }
         
         if (!empty($img)) {
+            #var_dump($param);
+            $setCAP = microtime(true);
             
-            $trapData = [];
-            if ($trap) {
-                $trapData = [
-                    $req['headers']["x-captcha-trap-key"][0] => $req['headers']["x-captcha-trap-val"][0],
-                    'captcha_instruction' => $x_cap['ins'],
-                    'captcha_target_count' => $x_cap['cnt']
-                ];
-            }
+            $solution = Solve::img($this->api, $reff, $param['type'], $img, $part);
+            #var_dump($solution);
+            if (isset($solution['trouble'])) return ['trouble' => 1];
             
-            #_put('img.png', $img); #die;
-            #var_dump($x_cap); #die;
-            
-            $captype = $wtype ?? 'onlyfans';
-            $cappart = $warna ?? $x_cap;
-            
-            $solution = Solve::img($this->api, $reff, $captype, $img, $cappart);
-            if (isset($solution['trouble'])) return ['trouble' => 'reload'];
-            
-            preg_match_all('/x[=:\s]*(\d+)[,\s]*y[=:\s]*(\d+)/i', $solution, $matches, PREG_SET_ORDER);
+            $matches = parseSolution($solution);
             #var_dump($matches);
+            if (count($matches) < $param['cnt']) return ['trouble' => 'reload'];
             
-            if (count($matches) < $x_cap['cnt']) return ['trouble' => 'reload'];
-            if ($x_cap['ins'] === 'DESC' && !$warna) $matches = array_reverse($matches);
-
-            $waypoints = array_slice($matches, 0, $x_cap['cnt']);
-            $path = [];
-
-            foreach ($waypoints as $index => $wp) {
-                $x_target = (int)max(0, min(449, $wp[1]));
-                $y_target = (int)max(0, min(279, $wp[2]));
-
-                if ($index === 0) {
-                    $path[] = ['x' => $x_target, 'y' => $y_target];
-                    continue;
-                }
-
-                $prev = end($path);
-                $dx = $x_target - $prev['x'];
-                $dy = $y_target - $prev['y'];
-                $steps = max(3, (int)floor(sqrt($dx*$dx + $dy*$dy) / 3.5)); 
+            $waypoints = array_slice($matches, 0, $param['cnt']);
+            
+            $ANS   = [];
+            $times = [];
+            $t     = 0;
+            
+            foreach ($waypoints as $i => $wp) {
+                $x = (int)max(0, min(449, $wp[1]));
+                $y = (int)max(0, min(279, $wp[2]));
                 
-                for ($j = 1; $j <= $steps; $j++) {
-                    $ratio = $j / $steps;
-                    $ix = $prev['x'] + ($dx * $ratio) + ($j < $steps ? mt_rand(-2, 2) : 0);
-                    $iy = $prev['y'] + ($dy * $ratio) + ($j < $steps ? mt_rand(-2, 2) : 0);
-                    
-                    $path[] = [
-                        'x' => (int)max(0, min(449, $ix)),
-                        'y' => (int)max(0, min(279, $iy))
-                    ];
-                }
+                $ANS[] = $x . ',' . $y;
+                
+                $t += $i === 0 ? mt_rand(600, 1200) : mt_rand(400, 1000);
+                $times[] = $t;
             }
-
-            while (count($path) < 12) {
-                $last = end($path);
-                $path[] = [
-                    'x' => (int)max(0, min(449, $last['x'] + mt_rand(-3, 3))),
-                    'y' => (int)max(0, min(279, $last['y'] + mt_rand(-3, 3)))
-                ];
-            }
-
-            $ANS = [];
-            foreach ($path as $p) $ANS[] = $p['x'] . ',' . $p['y'];
             
+            _sle(1);
             return [
                 'captcha_answer' => implode(';', $ANS),
+                'captcha_timing' => implode(',', $times),
                 #'pow_nonce' => SolveUtils::Pow($x_pow['salt'], $x_pow['diff'])['nonce'] ?? 0,
                 #'browser_fingerprint' => $this->onfFPS(Inf::$uagent, $mdt, $waktu, $trapData);
             ];
