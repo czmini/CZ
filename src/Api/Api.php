@@ -305,6 +305,9 @@ final class Api {
             'onlyfans' => [
                 'api' => 'necaptcha',
                 'img' => 'body',
+                'map' => [
+                    'ins' => 'textinstructions'
+                    ],
             ],
             
         ],
